@@ -1,7 +1,5 @@
 import random
-from operator import itemgetter
-
-from numpy import result_type
+#TODO resultat de writeToFile ne correspond pas au resultat d'evaluation
 
 aimeList = []
 clients = None
@@ -9,7 +7,7 @@ clients = None
 def main():
     global clients
     global aimeList
-    clients = lireDonnees("d_difficile.txt")
+    clients = lireDonnees("d_inf.txt")
 
     for c in clients:
         for i in c.ingredientsA:
@@ -17,7 +15,7 @@ def main():
     aimeList = list(set(aimeList))
 
     #bb("Branch_and_bound.txt")
-    gen("Algorithme_Genetique.txt")
+    gen("Algorithme_Genetique.txt", 5)
 
 class Client:
     def __init__(self, numero, ingredientsA:list[str], ingredientsNA:list[str]):
@@ -115,7 +113,7 @@ def numberWhoLike(state):
             result+=1
     return result
 
-def gen(nom):
+def gen(nom, arret):
     global aimeList
 
     taillePopulation = 20
@@ -138,13 +136,14 @@ def gen(nom):
     selection = []
     selection.append(population)
     selection.append(like)
-    result = croisement(selection, 0)
+    result = croisement(selection, 0, arret)
+    print(numberWhoLike(result))
     writeToFile(result, nom)
 
-def croisement(selection, k):
+def croisement(selection, k, arret):
     selection = getParents(selection)
     result = []
-    if selection[1][0] < 1750:
+    if selection[1][0] < arret:
         for i in range (len(selection[0])):
             buff = selection[0].copy()
             point = random.randint(0, len(selection[0][i]))
@@ -170,7 +169,7 @@ def croisement(selection, k):
         selection = []
         selection.append(result)
         selection.append(like)
-        return (croisement(selection, k+1))
+        return (croisement(selection, k+1, arret))
 
     else:
         return selection[0][0]
