@@ -130,7 +130,7 @@ def gen(nom, arret):
     selection = []
     selection.append(population)
     selection.append(like)
-    result = croisement(selection, 0, arret)
+    result = croisementNew(selection, arret)
     writeToFile(result, nom)
 
 def croisement(selection, k, arret):
@@ -166,6 +166,38 @@ def croisement(selection, k, arret):
 
     else:
         return selection[0][0]
+
+def croisementNew(selection, arret):
+    while selection[1][0] < arret:
+        selection = getParents(selection)
+        result = []
+        for i in range (len(selection[0])):
+            buff = selection[0].copy()
+            point = random.randint(0, len(selection[0][i]))
+            p1 = buff.pop(random.randint(0,len(buff)-1))
+            p2 = buff.pop(random.randint(0,len(buff)-1))
+            child1 = []
+            child2 = []
+            for j in range (point):
+                child1.append(p1[j])
+                child2.append(p2[j])
+            for j in range (point, len(selection[0][i])):
+                child1.append(p2[j])
+                child2.append(p1[j])
+            result.append(child1)
+            result.append(child2)
+
+        result = mutation(result)
+
+        like = []
+        for i in range (len(result)):
+            like.append(numberWhoLike(result[i]))
+    
+        selection = []
+        selection.append(result)
+        selection.append(like)
+
+    return selection[0][0]
 
 def getParents(lst):
     resultp = []
