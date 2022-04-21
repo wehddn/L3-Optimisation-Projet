@@ -1,0 +1,63 @@
+@startuml
+
+class Programme {
+    Programme(AlgorithmeResolution ar)
+    int ajouterIngredient(String ingredient)
+    int ajouterClient(Client c)
+    List<String> getIngredientsSolution()
+    void trouverSolution()
+}
+Programme --"*" Client: clients
+Programme --"1" List<String>: ingredients
+Programme --"1" List<String>: ingredientsSolution
+Programme --"1" GestionnaireFichier: gestionFichier
+Programme --"1" AlgorithmeResolution: resolveur
+
+class GestionnaireFichier {
+    GestionnaireFichier(Programme p)
+    void getDonnees(String nomFichier)
+    void ecrireResultat(String nomFichier)
+}
+
+abstract class AlgorithmeResolution {
+    AlgorithmeResolution(Programme p)
+    void trouverSolution()
+}
+AlgorithmeResolution --"1" Programme: programme
+
+class BranchAndBound extends AlgorithmeResolution {
+    BranchAndBound(Programme p)
+    void trouverSolution()
+}
+
+class Genetique extends AlgorithmeResolution {
+    int taillePopulation
+    Genetique(Programme p, int taillePopulation)
+    void trouverSolution()
+    List<Recette> selection(List<Recette> recettes)
+    List<Recette> croisement(List<Recette> recettesSelectionnes)
+    List<Recette> mutation(List<Recette> recettesSelectionnes)
+    Dict<Recette,int> evaluation(List<Recette>)
+}
+
+
+class Recette {
+    List<int> index
+    Recette(List<int> indexRecettes)
+    List<int> getIndexIngredients()
+}
+
+class Client {
+    int numero
+    List<int> ingredientsAimes
+    List<int> ingredientNonAimes
+    Client(int numero)
+    void addIngredientAime(int indexIngredient)
+    void addIngredientNonAime(int indexIngredient)
+    booleen aime(int indexIngredient)
+    booleen aimePas(int indexIngredient)
+    booleen recetteAcceptable(Recette r)
+}
+
+
+@enduml
