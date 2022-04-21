@@ -12,6 +12,8 @@ def main():
     for c in clients:
         for i in c.ingredientsA:
             aimeList.append(i)
+        for j in c.ingredientsNA:
+            aimeList.append(j)
     aimeList = list(set(aimeList))
 
     #bb("Branch_and_bound.txt")
@@ -72,7 +74,7 @@ def bb(nom):
 def writeToFile(result, nom):
     resultWrite = ""
     count = 0
-    for i in range(len(aimeList)):
+    for i in range(len(result)):
         if result[i]==1:
             resultWrite=resultWrite + " " + aimeList[i]
             count+=1
@@ -97,19 +99,14 @@ def bbAlgo(state, i):
 def numberWhoLike(state):
     global aimeList
     global clients
+    solution_list = []
+    for i in range(len(state)):
+        if state[i] == 1:
+            solution_list.append(aimeList[i])
+    solution_set = set(solution_list)
     result = 0
     for c in clients:
-        like = True
-        for i in c.ingredientsA:
-            if state[aimeList.index(i)]!=1 :
-                like = False
-        for i in c.ingredientsNA:
-            try:
-                if state[aimeList.index(i)]!=0 :
-                    like = False
-            except ValueError: 
-                None
-        if like:
+        if set(c.ingredientsA).issubset(solution_set) and len(set(c.ingredientsNA).intersection(solution_set))==0:
             result+=1
     return result
 
