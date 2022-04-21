@@ -41,7 +41,7 @@ def lireDonnees(chemin:str) -> list[Client]:
         for i in range(nombre):
             ligneA = lireLigneClient(fichier.readline())
             ligneNA = lireLigneClient(fichier.readline())
-            clients.append(Client(i, ligneA[1:len(ligneA)], ligneNA[1:len(ligneA)]))
+            clients.append(Client(i, ligneA[1:len(ligneA)], ligneNA[1:len(ligneNA)]))
             
         return clients
 
@@ -137,7 +137,6 @@ def gen(nom, arret):
     selection.append(population)
     selection.append(like)
     result = croisement(selection, 0, arret)
-    print(numberWhoLike(result))
     writeToFile(result, nom)
 
 def croisement(selection, k, arret):
