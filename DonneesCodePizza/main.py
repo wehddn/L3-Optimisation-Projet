@@ -1,20 +1,19 @@
 import random
-#TODO resultat de writeToFile ne correspond pas au resultat d'evaluation
 
-aimeList = []
+listIngredients = []
 clients = None
 
 def main():
     global clients
-    global aimeList
+    global listIngredients
     clients = lireDonnees("d_difficile.txt")
 
     for c in clients:
         for i in c.ingredientsA:
-            aimeList.append(i)
+            listIngredients.append(i)
         for j in c.ingredientsNA:
-            aimeList.append(j)
-    aimeList = list(set(aimeList))
+            listIngredients.append(j)
+    listIngredients = list(set(listIngredients))
 
     #bb("Branch_and_bound.txt")
     gen("Algorithme_Genetique.txt", 1750)
@@ -57,58 +56,56 @@ def lireLigneClient(ligne):
 
 
 def bb(nom):
-    global aimeList
-    global aimePasList
-    #liste des tout ingredients qu'on aime
+    global listIngredients
     
     lst = []
-    for i in range (len(aimeList)): #11111
+    for _ in range (len(listIngredients)): #11111
         lst.append(1)
 
-    result = bbAlgo(lst, 0)
-    writeToFile(result, nom)
+    resultat = bbAlgo(lst, 0)
+    ecrireDonnees(resultat, nom)
 
-def writeToFile(result, nom):
-    resultWrite = ""
+def ecrireDonnees(resultat, nom):
+    resultatEcrire = ""
     count = 0
-    for i in range(len(result)):
-        if result[i]==1:
-            resultWrite=resultWrite + " " + aimeList[i]
+    for i in range(len(resultat)):
+        if resultat[i]==1:
+            resultatEcrire=resultatEcrire + " " + listIngredients[i]
             count+=1
-    resultWrite=str(count) + resultWrite
+    resultatEcrire=str(count) + resultatEcrire
     with open(nom, 'w') as f:
-        f.write(resultWrite)
+        f.write(resultatEcrire)
 
-def bbAlgo(state, i):
-    if i<len(state)-1:
-        leftState = state.copy()
-        rightState = state.copy()
-        leftState[i] = 1
-        rightState[i] = 0
-        resultL = numberWhoLike(leftState)
-        resultR = numberWhoLike(rightState)
-        if resultL >= resultR:
-            return bbAlgo(leftState, i+1)
+def bbAlgo(seq, i):
+    if i<len(seq)-1:
+        brancheGauche = seq.copy()
+        brancheDroite = seq.copy()
+        brancheGauche[i] = 1
+        brancheDroite[i] = 0
+        resultatL = nombreQuiAime(brancheGauche)
+        resultatR = nombreQuiAime(brancheDroite)
+        if resultatL >= resultatR:
+            return bbAlgo(brancheGauche, i+1)
         else:
-            return bbAlgo(rightState, i+1)
-    return state
+            return bbAlgo(brancheDroite, i+1)
+    return seq
 
-def numberWhoLike(state):
-    global aimeList
+def nombreQuiAime(seq):
+    global listIngredients
     global clients
     solution_list = []
-    for i in range(len(state)):
-        if state[i] == 1:
-            solution_list.append(aimeList[i])
+    for i in range(len(seq)):
+        if seq[i] == 1:
+            solution_list.append(listIngredients[i])
     solution_set = set(solution_list)
-    result = 0
+    resultat = 0
     for c in clients:
         if set(c.ingredientsA).issubset(solution_set) and len(set(c.ingredientsNA).intersection(solution_set))==0:
-            result+=1
-    return result
+            resultat+=1
+    return resultat
 
 def gen(nom, arret):
-    global aimeList
+    global listIngredients
 
     taillePopulation = 50
 
@@ -116,26 +113,26 @@ def gen(nom, arret):
     p = 0
     while p < taillePopulation:
         lst = []
-        for i in range (len(aimeList)):
+        for i in range (len(listIngredients)):
             lst.append(random.randint(0,1))
         if not lst in population:
             population.append(lst)
         else:
             p-=1
         p+=1
-    like = []
+    aime = []
     for i in range (len(population)):
-        like.append(numberWhoLike(population[i]))
+        aime.append(nombreQuiAime(population[i]))
 
     selection = []
     selection.append(population)
-    selection.append(like)
-    result = croisementNew(selection, arret)
-    writeToFile(result, nom)
+    selection.append(aime)
+    resultat = croisementNew(selection, arret)
+    ecrireDonnees(resultat, nom)
 
 def croisement(selection, k, arret):
     selection = getParents(selection)
-    result = []
+    resultat = []
     if selection[1][0] < arret:
         for i in range (len(selection[0])):
             buff = selection[0].copy()
@@ -150,18 +147,18 @@ def croisement(selection, k, arret):
             for j in range (point, len(selection[0][i])):
                 child1.append(p2[j])
                 child2.append(p1[j])
-            result.append(child1)
-            result.append(child2)
+            resultat.append(child1)
+            resultat.append(child2)
 
-        result = mutation(result)
+        resultat = mutation(resultat)
 
-        like = []
-        for i in range (len(result)):
-            like.append(numberWhoLike(result[i]))
+        aime = []
+        for i in range (len(resultat)):
+            aime.append(nombreQuiAime(resultat[i]))
 
         selection = []
-        selection.append(result)
-        selection.append(like)
+        selection.append(resultat)
+        selection.append(aime)
         return (croisement(selection, k+1, arret))
 
     else:
@@ -169,8 +166,9 @@ def croisement(selection, k, arret):
 
 def croisementNew(selection, arret):
     while selection[1][0] < arret:
+        print(selection[1][0])
         selection = getParents(selection)
-        result = []
+        resultat = []
         for i in range (len(selection[0])):
             buff = selection[0].copy()
             point = random.randint(0, len(selection[0][i]))
@@ -184,24 +182,24 @@ def croisementNew(selection, arret):
             for j in range (point, len(selection[0][i])):
                 child1.append(p2[j])
                 child2.append(p1[j])
-            result.append(child1)
-            result.append(child2)
+            resultat.append(child1)
+            resultat.append(child2)
 
-        result = mutation(result)
+        resultat = mutation(resultat)
 
-        like = []
-        for i in range (len(result)):
-            like.append(numberWhoLike(result[i]))
+        aime = []
+        for i in range (len(resultat)):
+            aime.append(nombreQuiAime(resultat[i]))
     
         selection = []
-        selection.append(result)
-        selection.append(like)
+        selection.append(resultat)
+        selection.append(aime)
 
     return selection[0][0]
 
 def getParents(lst):
-    resultp = []
-    resultv = []
+    resultat1 = []
+    resultat2 = []
     
     lst_len = int(len(lst[1])/2)
     if lst_len % 2 == 1:
@@ -209,14 +207,14 @@ def getParents(lst):
 
     for i in range (lst_len):
         idmax = lst[1].index(max(lst[1]))
-        resultp.append(lst[0].pop(idmax))
-        resultv.append(lst[1].pop(idmax))
+        resultat1.append(lst[0].pop(idmax))
+        resultat2.append(lst[1].pop(idmax))
     
-    result = []
-    result.append(resultp)
-    result.append(resultv)
+    resultat = []
+    resultat.append(resultat1)
+    resultat.append(resultat2)
 
-    return result
+    return resultat
 
 def mutation(lst):
     for i in range (len(lst)):
