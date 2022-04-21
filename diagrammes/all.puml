@@ -6,6 +6,7 @@ class Programme {
     int ajouterClient(Client c)
     List<String> getIngredientsSolution()
     void trouverSolution()
+    String getIngredient(int indexIngredient)
 }
 Programme --"*" Client: clients
 Programme --"1" List<String>: ingredients
@@ -42,22 +43,23 @@ class Genetique extends AlgorithmeResolution {
 
 
 class Recette {
-    List<int> index
-    Recette(List<int> indexRecettes)
+    List<int> indexIngredients
+    Recette(Programme p, List<int> indexIngredients)
     List<int> getIndexIngredients()
 }
+Recette --"1" Programme
 
 class Client {
     int numero
     List<int> ingredientsAimes
     List<int> ingredientNonAimes
-    Client(int numero)
+    Client(Programme p, int numero)
     void addIngredientAime(int indexIngredient)
     void addIngredientNonAime(int indexIngredient)
     booleen aime(int indexIngredient)
     booleen aimePas(int indexIngredient)
     booleen recetteAcceptable(Recette r)
 }
-
+Client --"1" Programme
 
 @enduml
