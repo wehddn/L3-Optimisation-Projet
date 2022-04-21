@@ -6,7 +6,7 @@ clients = None
 def main():
     global clients
     global listIngredients
-    clients = lireDonnees("d_difficile.txt")
+    clients = lireDonnees("e_elabore.txt")
 
     for c in clients:
         for i in c.ingredientsA:
@@ -16,7 +16,8 @@ def main():
     listIngredients = list(set(listIngredients))
 
     #bb("Branch_and_bound.txt")
-    gen("Algorithme_Genetique.txt", 1750)
+    #gen("Algorithme_Genetique.txt", 1750)
+    tabou("Recherche_tabou.txt")
 
 class Client:
     def __init__(self, numero, ingredientsA:list[str], ingredientsNA:list[str]):
@@ -220,6 +221,36 @@ def mutation(lst):
     for i in range (len(lst)):
         lst[i][random.randint(1, len(lst[i]))-1]=random.randint(0, 1)
     return lst
+
+def tabou(nom):
+    global listIngredients
+    
+    lst = []
+    for _ in range (len(listIngredients)):
+        lst.append(random.randint(0,1))
+    resultat = tabouAlgo(lst)
+    #ecrireDonnees(resultat, nom)
+    
+def tabouAlgo(seq):
+    tabouSize = 100
+    i = 0
+    tabou = []
+    tabou.append(seq)
+    meilleurValeur = nombreQuiAime(seq)
+    while meilleurValeur<2000:
+        print(meilleurValeur)
+        id_n = random.randint(0,len(seq)-1)
+        seq_n = seq.copy()
+        seq_n[id_n] = 1 if seq[id_n]==0 else 0
+        if not seq_n in tabou:
+            if len(tabou)>=tabouSize:
+                tabou.pop(0)
+            tabou.append(seq_n)
+            if nombreQuiAime(seq_n)>meilleurValeur:
+                seq = seq_n
+                meilleurValeur = nombreQuiAime(seq)
+        i+=1
+    pass
 
 if __name__ == "__main__":
     main()
