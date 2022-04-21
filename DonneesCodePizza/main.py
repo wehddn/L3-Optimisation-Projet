@@ -7,7 +7,7 @@ clients = None
 def main():
     global clients
     global aimeList
-    clients = lireDonnees("d_inf.txt")
+    clients = lireDonnees("d_difficile.txt")
 
     for c in clients:
         for i in c.ingredientsA:
@@ -17,7 +17,7 @@ def main():
     aimeList = list(set(aimeList))
 
     #bb("Branch_and_bound.txt")
-    gen("Algorithme_Genetique.txt", 5)
+    gen("Algorithme_Genetique.txt", 1750)
 
 class Client:
     def __init__(self, numero, ingredientsA:list[str], ingredientsNA:list[str]):
@@ -37,14 +37,11 @@ def lireDonnees(chemin:str) -> list[Client]:
         checkInt(nombre)
 
         nombre = int(nombre)
-
         clients = []
-
         for i in range(nombre):
             ligneA = lireLigneClient(fichier.readline())
             ligneNA = lireLigneClient(fichier.readline())
             clients.append(Client(i, ligneA[1:len(ligneA)], ligneNA[1:len(ligneNA)]))
-            
         return clients
 
 def checkInt(valeur:str):
@@ -113,7 +110,7 @@ def numberWhoLike(state):
 def gen(nom, arret):
     global aimeList
 
-    taillePopulation = 20
+    taillePopulation = 50
 
     population = []
     p = 0
