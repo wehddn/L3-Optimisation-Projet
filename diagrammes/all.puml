@@ -1,12 +1,15 @@
 @startuml
 
 class Programme {
-    Programme(AlgorithmeResolution ar)
+    Programme()
+    void setAlgorithmeResolution(AlgorithmeResolution ar)
     int ajouterIngredient(String ingredient)
     void ajouterClient(Client c)
     List<String> getIngredientsSolution()
     void trouverSolution(String cheminFichier)
     String getIngredient(int indexIngredient)
+    int getNbIngredients()
+    List<Client> getClients()
 }
 Programme --"*" Client: clients
 Programme --"1" List<String>: ingredients
@@ -34,6 +37,11 @@ class BranchAndBound extends AlgorithmeResolution {
     void trouverSolution()
 }
 
+class ExplorationTotale extends AlgorithmeResolution {
+    ExplorationTotale(Programme p)
+    void trouverSolution()
+}
+
 class Genetique extends AlgorithmeResolution {
     int taillePopulation
     Genetique(Programme p, int taillePopulation)
@@ -48,6 +56,7 @@ class Genetique extends AlgorithmeResolution {
 class Recette {
     List<int> indexIngredients
     Recette(Programme p, List<int> indexIngredients)
+    Recette(Programme p, String codeIngredients)
     List<int> getIndexIngredients()
 }
 Recette --"1" Programme

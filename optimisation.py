@@ -1,3 +1,6 @@
+from abc import ABC, abstractclassmethod
+
+
 class Programme:
     pass
 
@@ -22,6 +25,10 @@ class BranchAndBound:
     pass
 
 
+class ExplorationTotale:
+    pass
+
+
 class Genetique:
     pass
 
@@ -37,8 +44,9 @@ class Recette:
         de la recette
     """
     __indexIngredients: list[int]
+    __programme: Programme
 
-    def __init__(self, p: Programme, indexIngredients: list[int]) -> None:
+    def __init__(self, p: Programme, *args) -> None:
         """
         Constructeur
 
@@ -46,11 +54,32 @@ class Recette:
         ----------
         p : Programme
             Le programme de recherche de solution
-        indexIngredients : list[int]
-            La liste des index(dans la liste des ingredients du programme) des ingrédients
-            de la recette
+        
         """
-        self.__indexIngredients = indexIngredients
+        if isinstance(args[0], list):
+            self.__indexIngredients = args[0]
+        elif isinstance(args[0], str):
+            self.__indexIngredients = []
+            codeIngredients = args[0]
+            for i in range(len(codeIngredients)):
+                if codeIngredients[i] == '1':
+                    self.__indexIngredients.append(i)
+        self.__programme = p
+
+    # def __init__(self, p: Programme, codeIngredients: str) -> None:
+    #     self.__indexIngredients = []
+    #     self.__programme = p
+
+    #     for i in range(len(codeIngredients)):
+    #         if codeIngredients[i] == '1':
+    #             self.__indexIngredients.append(i)
+    #     print(self.__indexIngredients)
+
+    def __repr__(self) -> str:
+        ingredients = []
+        for i in self.__indexIngredients:
+            ingredients.append(self.__programme.getIngredient(i))
+        return ingredients.__repr__()
 
     def getIndexIngredients(self) -> list[int]:
         """
@@ -166,11 +195,14 @@ class Client:
         r : Recette
             la Recette de la pizza
         """
-        contientAimes = set(self.__ingredientsAimes).issubset(
-            set(r.getIndexIngredients()))
-        contientNonAimes = set(self.__ingredientsNonAimes).issubset(
-            set(r.getIndexIngredients()))
-        return (contientAimes and not contientNonAimes)
+        ingredientsASet = set(self.__ingredientsAimes)
+        ingredientsNASet = set(self.__ingredientsNonAimes)
+        recetteSet = set(r.getIndexIngredients())
+        contientAimes = ingredientsASet.issubset(
+            recetteSet)
+        neContientNonAimes = len(ingredientsNASet.intersection(
+            recetteSet)) == 0
+        return (contientAimes and neContientNonAimes)
 
 
 class GestionnaireFichier:
@@ -284,8 +316,65 @@ class GestionnaireFichier:
         self.__programme.ajouterClient(client)
 
 
-class AlgorithmeResolution:
-    pass
+class AlgorithmeResolution(ABC):
+    _programme: Programme
+
+    def __init__(self, p: Programme) -> None:
+        super().__init__()
+        self._programme = p
+
+    @abstractclassmethod
+    def trouverSolution(self) -> None:
+        pass
+
+
+class BranchAndBound(AlgorithmeResolution):
+    def __init__(self, p: Programme) -> None:
+        super().__init__(p)
+
+    def trouverSolution(self) -> None:
+        pass
+
+
+class ExplorationTotale(AlgorithmeResolution):
+    def __init__(self, p: Programme) -> None:
+        super().__init__(p)
+
+    def trouverSolution(self) -> None:
+        noBit = 0  # le no du bit qu'il faut changer
+        # on obtient le code pour representer les ingredients
+        codeRecette = format(2**self._programme.getNbIngredients() - 1, 'b')
+        meilleurSolution = (codeRecette, 0)
+        avisite = []
+        avisite.append((codeRecette, noBit))
+
+        while avisite:  # On utilise la boucle while et la pile pour simuler une recursivité
+            next = avisite.pop(0)
+            score = self.calculerScore(next[0])
+            if score > meilleurSolution[1]:
+                meilleurSolution = (next, score)
+            
+            bitToChange = next[1]
+            
+            print(bitToChange)
+            noBit += 1
+        #     r = Recette(self._programme, next)
+
+        #     # if not next in self._parcours:
+        #     #     self._parcours.append(next)
+        #     #     for sommet in self._graphe.successeurs(next):
+        #     #         self._reference.setdefault(sommet, 0)
+        #     #         self._reference[sommet] += 1
+        #     avisite.append(sommet)
+        
+
+    def calculerScore(self, codeRecette: str) -> int:
+        score = 0
+        r = Recette(self._programme, codeRecette)
+        for i in self._programme.getClients():
+            if i.recetteAcceptable(r):
+                score += 1
+        return score
 
 
 class Programme:
@@ -294,12 +383,14 @@ class Programme:
     __ingredientsSolution: list[str]
     __clients: list[Client]
     __gestionFichier: GestionnaireFichier
+    __resolveur: AlgorithmeResolution
 
-    def __init__(self, ar: AlgorithmeResolution) -> None:
+    def __init__(self) -> None:
         self.__ingredients = []
         self.__ingredientsSolution = []
         self.__clients = []
         self.__gestionFichier = GestionnaireFichier(self)
+        self.__resolveur = BranchAndBound(self)
 
     def __repr__(self) -> str:
         retour = "Ingredients : " + self.__ingredients.__repr__() + "\nClients :"
@@ -307,6 +398,9 @@ class Programme:
             retour += "\n" + client.__repr__()
         retour += "\nIngredients solution : " + self.__ingredientsSolution.__repr__()
         return retour
+
+    def setAlgorithmeResolution(self, ar: AlgorithmeResolution) -> None:
+        self.__resolveur = ar
 
     def ajouterIngredient(self, ingredient: str) -> None:
         # Si l'ingrédient existe déjà on renvoie son index
@@ -324,3 +418,10 @@ class Programme:
 
     def trouverSolution(self, cheminFichier: str) -> None:
         self.__gestionFichier.getDonnees(cheminFichier)
+        self.__resolveur.trouverSolution()
+
+    def getNbIngredients(self) -> int:
+        return len(self.__ingredients)
+
+    def getClients(self) -> list[Client]:
+        return self.__clients
