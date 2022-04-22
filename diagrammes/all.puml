@@ -3,9 +3,9 @@
 class Programme {
     Programme(AlgorithmeResolution ar)
     int ajouterIngredient(String ingredient)
-    int ajouterClient(Client c)
+    void ajouterClient(Client c)
     List<String> getIngredientsSolution()
-    void trouverSolution()
+    void trouverSolution(String cheminFichier)
     String getIngredient(int indexIngredient)
 }
 Programme --"*" Client: clients
@@ -18,7 +18,10 @@ class GestionnaireFichier {
     GestionnaireFichier(Programme p)
     void getDonnees(String nomFichier)
     void ecrireResultat(String nomFichier)
+    int getInt(String texte, String message)
+    void ajouterClient(int noClient, String ligne1, String ligne2)
 }
+GestionnaireFichier --"1" Programme
 
 abstract class AlgorithmeResolution {
     AlgorithmeResolution(Programme p)
