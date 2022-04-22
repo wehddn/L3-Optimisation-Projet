@@ -350,14 +350,28 @@ class ExplorationTotale(AlgorithmeResolution):
 
         while avisite:  # On utilise la boucle while et la pile pour simuler une recursivité
             next = avisite.pop(0)
+            noBit = next[1]
             score = self.calculerScore(next[0])
             if score > meilleurSolution[1]:
                 meilleurSolution = (next, score)
             
-            bitToChange = next[1]
+            # changer le bit
+            listnex2 = [str(x) for x in next[0]]
+            if listnex2[noBit] == "1":
+                listnex2[noBit] = "0"
+            else: 
+                listnex2[noBit] = "1"
+
+            # incrementer le bit, ajouter 2 recettes dans le avisite
+            if noBit < len(next[0])-1:
+                noBit += 1
+                next1 = (next[0], noBit)
+                next2 = ("".join(listnex2), noBit)
+                avisite.append(next2)
+                avisite.append(next1)
+
+        print(meilleurSolution)
             
-            print(bitToChange)
-            noBit += 1
         #     r = Recette(self._programme, next)
 
         #     # if not next in self._parcours:
