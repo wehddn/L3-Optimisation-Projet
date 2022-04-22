@@ -1,19 +1,29 @@
 class Programme:
-    """Classe représentant le programme de recherche de solution"""
-    __ingredients: list[str]
+    pass
 
-    def __init__(self) -> None:
-        self.__ingredients = []
 
-    def ajouterIngredient(self, ingredient: str) -> None:
-        if ingredient in self.__ingredients:
-            return self.__ingredients.index(ingredient)
+class Recette:
+    pass
 
-        self.__ingredients.append(ingredient)
-        return len(self.__ingredients) - 1
 
-    def getIngredient(self, indexIngredient: int) -> str:
-        return self.__ingredients[indexIngredient]
+class GestionnaireFichier:
+    pass
+
+
+class AlgorithmeResolution:
+    pass
+
+
+class Client:
+    pass
+
+
+class BranchAndBound:
+    pass
+
+
+class Genetique:
+    pass
 
 
 class Recette:
@@ -147,4 +157,170 @@ class Client:
             return True
         return False
 
-# TODO: booleen recetteAcceptable(Recette r)
+    def recetteAcceptable(self, r: Recette) -> bool:
+        """
+        Dit si le client peut manger une pizza contenant certains ingredients
+
+        Parameters
+        ----------
+        r : Recette
+            la Recette de la pizza
+        """
+        contientAimes = set(self.__ingredientsAimes).issubset(
+            set(r.getIndexIngredients()))
+        contientNonAimes = set(self.__ingredientsNonAimes).issubset(
+            set(r.getIndexIngredients()))
+        return (contientAimes and not contientNonAimes)
+
+
+class GestionnaireFichier:
+    """
+    Classe responsable de la recupération et de l'écriture des données dans
+    des fichiers
+
+    Attributes
+    ----------
+    __programme : Programme
+        Le programme de recherche
+    """
+    __programme: Programme
+
+    def __init__(self, p: Programme) -> None:
+        self.__programme = p
+
+    def getDonnees(self, nomFichier: str) -> None:
+        """
+        Récupére les données à partir d'un fichier et les transmet au programme
+
+        Parameters
+        ----------
+        nomFichier: str
+            Le chemin du fichier
+        """
+        with open(nomFichier) as fichier:
+            # Lecture de l'entête (nombre de clients)
+            ligne = fichier.readline().strip('\n')
+            nbClients = self.getInt(ligne,
+                                    "Le ficher n'est pas valide, la première ligne doit être le nombre de client (entier)")
+            # Récupération des clients et enregistrement de leurs infos
+            for i in range(nbClients):
+                ligne1 = fichier.readline().strip('\n')
+                ligne2 = fichier.readline().strip('\n')
+                self.ajouterClient(i, ligne1, ligne2)
+
+    def ecrireResultat(self, nomFichier: str) -> None:
+        """
+        Ecrit les résultats du programme dans le fichier spécifié
+
+        Parameters
+        ----------
+        nomFichier: str
+            Le chemin du fichier dans lequel ecrire
+        """
+        pass
+
+    def getInt(self, texte: str, message: str) -> int:
+        """
+        Donne l'entier correspondant du texte, dans le cas ou ce n'est pas un
+        entier lance une exception
+
+        Parameters
+        ----------
+        texte: str
+            Le texte à convertir
+        message: str
+            Le message de l'exception
+        """
+        if (not texte.isdecimal()):
+            raise Exception(message)
+        return int(texte)
+
+    def ajouterClient(self, noClient: int,  ligne1: str, ligne2: str) -> None:
+        """
+        Ajoute un client dans le programme avec les infos fournies et déclenche
+        une exception en cas de problème
+
+        Parameters
+        ----------
+        noClient: int
+            Le numéro du client
+        ligne1: str
+            La ligne contenant les infos sur ses ingrédients aimés
+        ligne2: str
+            La ligne contenant les infos sur ses ingrédients non aimés
+        """
+        # Vérification de la validité des infos
+        if not ligne1:
+            raise Exception("La ligne des ingredients aimés du client no {noClient} est vide".format(
+                noClient=noClient))
+        if not ligne2:
+            raise Exception("La ligne des ingredients non aimés du client no {noClient} est vide".format(
+                noClient=noClient))
+
+        ligne1 = ligne1.split(" ")
+        ligne2 = ligne2.split(" ")
+
+        nbIngredientsA = self.getInt(
+            ligne1[0], "Le nombre d'ingrédients aimés du client {noClient} n'est pas spécifié".format(noClient=noClient))
+        if nbIngredientsA != len(ligne1) - 1:
+            raise Exception("Le nombre d'ingrédients aimés du client {noClient} ne correspond pas au nombre d'ingredients donnés".format(
+                noClient=noClient))
+
+        nbIngredientsNA = self.getInt(
+            ligne2[0], "Le nombre d'ingrédients non aimés du client {noClient} n'est pas spécifié".format(noClient=noClient))
+        if nbIngredientsNA != len(ligne2) - 1:
+            raise Exception("Le nombre d'ingrédients non aimés du client {noClient} ne correspond pas au nombre d'ingredients donnés".format(
+                noClient=noClient))
+
+        # Enregistrement du client et de ces ingredients dans le programme
+        client = Client(self.__programme, noClient)
+        for ingredient in ligne1[1:]:
+            client.addIngredientAime(
+                self.__programme.ajouterIngredient(ingredient))
+        for ingredient in ligne2[1:]:
+            client.addIngredientNonAime(
+                self.__programme.ajouterIngredient(ingredient))
+
+        self.__programme.ajouterClient(client)
+
+
+class AlgorithmeResolution:
+    pass
+
+
+class Programme:
+    """Classe représentant le programme de recherche de solution"""
+    __ingredients: list[str]
+    __ingredientsSolution: list[str]
+    __clients: list[Client]
+    __gestionFichier: GestionnaireFichier
+
+    def __init__(self, ar: AlgorithmeResolution) -> None:
+        self.__ingredients = []
+        self.__ingredientsSolution = []
+        self.__clients = []
+        self.__gestionFichier = GestionnaireFichier(self)
+
+    def __repr__(self) -> str:
+        retour = "Ingredients : " + self.__ingredients.__repr__() + "\nClients :"
+        for client in self.__clients:
+            retour += "\n" + client.__repr__()
+        retour += "\nIngredients solution : " + self.__ingredientsSolution.__repr__()
+        return retour
+
+    def ajouterIngredient(self, ingredient: str) -> None:
+        # Si l'ingrédient existe déjà on renvoie son index
+        if ingredient in self.__ingredients:
+            return self.__ingredients.index(ingredient)
+        # Sinon on le rajoute et on renvoie son nouvel index
+        self.__ingredients.append(ingredient)
+        return len(self.__ingredients) - 1
+
+    def getIngredient(self, indexIngredient: int) -> str:
+        return self.__ingredients[indexIngredient]
+
+    def ajouterClient(self, c: Client) -> None:
+        self.__clients.append(c)
+
+    def trouverSolution(self, cheminFichier: str) -> None:
+        self.__gestionFichier.getDonnees(cheminFichier)
