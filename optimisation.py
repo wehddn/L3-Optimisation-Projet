@@ -338,30 +338,55 @@ class ExplorationTotale(AlgorithmeResolution):
         super().__init__(p)
 
     def trouverSolution(self) -> Recette:
-        noBit = 0  # le no du bit qu'il faut changer
-        # on obtient le code pour representer les ingredients
         nbIngredients = self._programme.getNbIngredients()
         meilleurSolution = ("1", 0)
         avisite = ["0", "1"]
-
-        while avisite:  # On utilise la boucle while et la pile pour simuler une recursivité
+        scores = dict()
+        while avisite:  # Parcours en largeur (minimise le nombre d'ingrédients utilisés)
             next = avisite.pop(0)
-            score = self.calculerScore(next)
+
+            norm = next.ljust(nbIngredients, '0')
+
+            # Vérifie dans le dict si le score n'a pas déjà été calculé pour cet recette
+            if norm in scores:
+                score = scores.get(norm)
+            else:
+                score = self.calculerScore(next)
+                scores[norm] = score
+
             if score > meilleurSolution[1]:
                 meilleurSolution = (next, score)
 
             if len(next) < nbIngredients:
                 avisite.append(next + "0")
                 avisite.append(next + "1")
+            
         return Recette(self._programme, meilleurSolution[0])
 
     def calculerScore(self, codeRecette: str) -> int:
+        """
+        Calcul e score de cette recette (nb de personne qui peuvent la manger)
+
+        Parameters
+        ----------
+        codeRecette : str
+            le code Recette de la pizza
+        """
         score = 0
         r = Recette(self._programme, codeRecette)
         for i in self._programme.getClients():
             if i.recetteAcceptable(r):
                 score += 1
         return score
+
+    # def nbRejets(self, r:Recette):
+    #     rejets = 0
+    #     for i in self._programme.getClients():
+    #         for ing in r.getIndexIngredients():
+    #             if i.aimePas(ing):
+    #                 rejets += 1
+    #                 break
+    #     return rejets
 
 
 class Programme:

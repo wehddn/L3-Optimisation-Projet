@@ -42,6 +42,7 @@ class BranchAndBound extends AlgorithmeResolution {
 class ExplorationTotale extends AlgorithmeResolution {
     ExplorationTotale(Programme p)
     Recette trouverSolution()
+    int calculerScore(String codeRecette)
 }
 
 class Genetique extends AlgorithmeResolution {
