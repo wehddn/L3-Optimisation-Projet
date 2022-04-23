@@ -1,4 +1,8 @@
 from abc import ABC, abstractclassmethod
+import random
+from time import perf_counter
+
+from DonneesCodePizza.main import croisement, mutation
 
 
 class Programme:
@@ -18,10 +22,6 @@ class AlgorithmeResolution:
 
 
 class Client:
-    pass
-
-
-class BranchAndBound:
     pass
 
 
@@ -247,7 +247,6 @@ class GestionnaireFichier:
         with open(nomFichier, "w") as fichier:
             fichier.write(text)
 
-
     def getInt(self, texte: str, message: str) -> int:
         """
         Donne l'entier correspondant du texte, dans le cas ou ce n'est pas un
@@ -324,13 +323,123 @@ class AlgorithmeResolution(ABC):
     def trouverSolution(self) -> Recette:
         pass
 
+    def calculerScore(self, codeRecette: str) -> int:
+        """
+        Calcul e score de cette recette (nb de personne qui peuvent la manger)
 
-class BranchAndBound(AlgorithmeResolution):
-    def __init__(self, p: Programme) -> None:
+        Parameters
+        ----------
+        codeRecette : str
+            le code Recette de la pizza
+        """
+        score = 0
+        r = Recette(self._programme, codeRecette)
+        for i in self._programme.getClients():
+            if i.recetteAcceptable(r):
+                score += 1
+        return score
+
+
+class Genetique(AlgorithmeResolution):
+    __taillePopulation: int
+
+    def __init__(self, p: Programme, taillePopulation: int) -> None:
         super().__init__(p)
+        self.__taillePopulation = taillePopulation
 
     def trouverSolution(self) -> Recette:
-        pass
+        taillePopulation = min(self._programme.getNbIngredients(), self.__taillePopulation)
+        debutGen = perf_counter()
+        random.seed()
+        population = self.genererPopulation(taillePopulation)
+        finGen = perf_counter()
+        print(f"Temps génération de la population : {finGen - debutGen}s")
+        meilleurRecette = ("1", 0)
+        continuer = True
+        genApresAm = 0
+        while continuer :
+            selection = self.selection(population, taillePopulation, 0.1)
+            if selection[1] > meilleurRecette[1]:
+                genApresAm = 0
+                meilleurRecette = (selection[0][0], selection[1])
+                print(meilleurRecette)
+            else :
+                genApresAm += 1
+            enfants = self.croisement(selection[0],taillePopulation)
+            enfants = self.mutation(enfants)
+            population = self.evaluation(enfants)
+            continuer = genApresAm < 50
+            
+        return Recette(self._programme, meilleurRecette[0])
+
+    def genererPopulation(self, taille: int) -> dict[Recette, int]:
+        population = dict()
+        nbIngredients = self._programme.getNbIngredients()
+        # Genere la population en calculant le score
+        while len(population) < taille:
+            valeur = random.randint(0, 2**nbIngredients - 1)
+            recette = format(valeur, 'b').rjust(nbIngredients, '0')
+            if not recette in population :
+                population[recette] = self.calculerScore(recette)
+
+        return population
+
+    def selection(self, population: dict[str, int],  taillePopulation: int, ratioParent: float) -> tuple[list,int]:
+        nbParent = round(taillePopulation * ratioParent)
+        meilleurs = []
+        meilleurScore = 0
+        for i in sorted(population, key=population.get, reverse=True):
+            if len(meilleurs) == 0 :
+                meilleurScore = population[i]
+
+            if len(meilleurs) < nbParent:
+                meilleurs.append(i)
+            else:
+                break
+        return (meilleurs,meilleurScore)
+
+    def croisement(self, selection: list[str], nbIndividus: int) -> list[str]:
+        resultat = []
+        while len(resultat) < nbIndividus:
+            selectTemp = selection.copy()
+            i = random.randint(0, len(selectTemp) - 1)
+            parent1 = selectTemp.pop(i)
+            i = random.randint(0, len(selectTemp) - 1)
+            parent2 = selectTemp.pop(i)
+
+            resultat.append(self.croisementPair(parent1, parent2))
+        return resultat
+        
+
+    def croisementPair(self, parent1: str, parent2: str) -> str:
+        point = random.randint(0, len(parent1) - 1)
+        reponse = parent1[:point] + parent2[point:]
+        return reponse
+    
+    def mutation(self, enfants:list[str]) -> list[str]:
+        reponse = []
+        for i in enfants:
+            reponse.append(self.mutationEnfant(i))
+        return reponse
+    
+    def mutationEnfant(self, enfant:str) -> str:
+        reponse = ""
+        probabilite = 1/10
+        for bit in enfant:
+            if random.random() <= probabilite:
+                if bit == "0":
+                    reponse += "1"
+                else:
+                    reponse += "0"
+            else:
+                reponse += bit
+        return reponse
+
+    def evaluation(self, enfants:list[str])->dict[str, int]:
+        reponse = dict()
+        for i in enfants:
+            reponse[i] = self.calculerScore(i)
+        return reponse
 
 
 class ExplorationTotale(AlgorithmeResolution):
@@ -342,7 +451,8 @@ class ExplorationTotale(AlgorithmeResolution):
         meilleurSolution = ("1", 0)
         avisite = ["0", "1"]
         scores = dict()
-        while avisite:  # Parcours en largeur (minimise le nombre d'ingrédients utilisés)
+        # Parcours en largeur (minimise le nombre d'ingrédients utilisés)
+        while avisite:
             next = avisite.pop(0)
 
             norm = next.ljust(nbIngredients, '0')
@@ -360,24 +470,8 @@ class ExplorationTotale(AlgorithmeResolution):
             if len(next) < nbIngredients:
                 avisite.append(next + "0")
                 avisite.append(next + "1")
-            
+
         return Recette(self._programme, meilleurSolution[0])
-
-    def calculerScore(self, codeRecette: str) -> int:
-        """
-        Calcul e score de cette recette (nb de personne qui peuvent la manger)
-
-        Parameters
-        ----------
-        codeRecette : str
-            le code Recette de la pizza
-        """
-        score = 0
-        r = Recette(self._programme, codeRecette)
-        for i in self._programme.getClients():
-            if i.recetteAcceptable(r):
-                score += 1
-        return score
 
     # def nbRejets(self, r:Recette):
     #     rejets = 0
@@ -399,7 +493,7 @@ class Programme:
     __gestionFichier: GestionnaireFichier
     __resolveur: AlgorithmeResolution
 
-    def __init__(self, entree:str, sortie:str) -> None:
+    def __init__(self, entree: str, sortie: str) -> None:
         self.__cheminEntree = entree
         self.__cheminSortie = sortie
         self.__ingredients = []
