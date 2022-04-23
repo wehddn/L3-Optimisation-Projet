@@ -1,11 +1,17 @@
 from optimisation import *
-
+import sys
 
 def main():
-    p = Programme()
+    try:
+        donnees = sys.argv[1]
+        solution = sys.argv[2]
+    except:
+        raise Exception("Erreur à la lecture des arguments. Syntaxe de la commande :\n\
+            python3 evaluation.py <chemin_vers_fichier_d_entree> <chemin_vers_fichier_de_solution>")
+
+    p = Programme(donnees, solution)
     p.setAlgorithmeResolution(ExplorationTotale(p))
-    p.trouverSolution("DonneesCodePizza/a_exemple.txt")
-    print(p)
+    p.trouverSolution()
 
 
 if __name__ == "__main__":

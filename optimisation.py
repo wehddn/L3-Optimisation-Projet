@@ -54,7 +54,7 @@ class Recette:
         ----------
         p : Programme
             Le programme de recherche de solution
-        
+
         """
         if isinstance(args[0], list):
             self.__indexIngredients = args[0]
@@ -65,15 +65,6 @@ class Recette:
                 if codeIngredients[i] == '1':
                     self.__indexIngredients.append(i)
         self.__programme = p
-
-    # def __init__(self, p: Programme, codeIngredients: str) -> None:
-    #     self.__indexIngredients = []
-    #     self.__programme = p
-
-    #     for i in range(len(codeIngredients)):
-    #         if codeIngredients[i] == '1':
-    #             self.__indexIngredients.append(i)
-    #     print(self.__indexIngredients)
 
     def __repr__(self) -> str:
         ingredients = []
@@ -229,7 +220,7 @@ class GestionnaireFichier:
         nomFichier: str
             Le chemin du fichier
         """
-        with open(nomFichier) as fichier:
+        with open(nomFichier, "r") as fichier:
             # Lecture de l'entête (nombre de clients)
             ligne = fichier.readline().strip('\n')
             nbClients = self.getInt(ligne,
@@ -249,7 +240,13 @@ class GestionnaireFichier:
         nomFichier: str
             Le chemin du fichier dans lequel ecrire
         """
-        pass
+        solution = self.__programme.getIngredientsSolution()
+        text = str(len(solution))
+        for s in solution:
+            text += " " + s
+        with open(nomFichier, "w") as fichier:
+            fichier.write(text)
+
 
     def getInt(self, texte: str, message: str) -> int:
         """
@@ -324,7 +321,7 @@ class AlgorithmeResolution(ABC):
         self._programme = p
 
     @abstractclassmethod
-    def trouverSolution(self) -> None:
+    def trouverSolution(self) -> Recette:
         pass
 
 
@@ -332,7 +329,7 @@ class BranchAndBound(AlgorithmeResolution):
     def __init__(self, p: Programme) -> None:
         super().__init__(p)
 
-    def trouverSolution(self) -> None:
+    def trouverSolution(self) -> Recette:
         pass
 
 
@@ -340,33 +337,23 @@ class ExplorationTotale(AlgorithmeResolution):
     def __init__(self, p: Programme) -> None:
         super().__init__(p)
 
-    def trouverSolution(self) -> None:
+    def trouverSolution(self) -> Recette:
         noBit = 0  # le no du bit qu'il faut changer
         # on obtient le code pour representer les ingredients
-        codeRecette = format(2**self._programme.getNbIngredients() - 1, 'b')
-        meilleurSolution = (codeRecette, 0)
-        avisite = []
-        avisite.append((codeRecette, noBit))
+        nbIngredients = self._programme.getNbIngredients()
+        meilleurSolution = ("1", 0)
+        avisite = ["0", "1"]
 
         while avisite:  # On utilise la boucle while et la pile pour simuler une recursivité
             next = avisite.pop(0)
-            score = self.calculerScore(next[0])
+            score = self.calculerScore(next)
             if score > meilleurSolution[1]:
                 meilleurSolution = (next, score)
-            
-            bitToChange = next[1]
-            
-            print(bitToChange)
-            noBit += 1
-        #     r = Recette(self._programme, next)
 
-        #     # if not next in self._parcours:
-        #     #     self._parcours.append(next)
-        #     #     for sommet in self._graphe.successeurs(next):
-        #     #         self._reference.setdefault(sommet, 0)
-        #     #         self._reference[sommet] += 1
-        #     avisite.append(sommet)
-        
+            if len(next) < nbIngredients:
+                avisite.append(next + "0")
+                avisite.append(next + "1")
+        return Recette(self._programme, meilleurSolution[0])
 
     def calculerScore(self, codeRecette: str) -> int:
         score = 0
@@ -379,18 +366,22 @@ class ExplorationTotale(AlgorithmeResolution):
 
 class Programme:
     """Classe représentant le programme de recherche de solution"""
+    __cheminEntree: str
+    __cheminSortie: str
     __ingredients: list[str]
     __ingredientsSolution: list[str]
     __clients: list[Client]
     __gestionFichier: GestionnaireFichier
     __resolveur: AlgorithmeResolution
 
-    def __init__(self) -> None:
+    def __init__(self, entree:str, sortie:str) -> None:
+        self.__cheminEntree = entree
+        self.__cheminSortie = sortie
         self.__ingredients = []
         self.__ingredientsSolution = []
         self.__clients = []
         self.__gestionFichier = GestionnaireFichier(self)
-        self.__resolveur = BranchAndBound(self)
+        self.__resolveur = ExplorationTotale(self)
 
     def __repr__(self) -> str:
         retour = "Ingredients : " + self.__ingredients.__repr__() + "\nClients :"
@@ -416,12 +407,23 @@ class Programme:
     def ajouterClient(self, c: Client) -> None:
         self.__clients.append(c)
 
-    def trouverSolution(self, cheminFichier: str) -> None:
-        self.__gestionFichier.getDonnees(cheminFichier)
-        self.__resolveur.trouverSolution()
+    def trouverSolution(self) -> None:
+        # Recupération des données
+        self.__gestionFichier.getDonnees(self.__cheminEntree)
+        meilleurRecette = self.__resolveur.trouverSolution()
+        # Recherche de solution
+        solution = []
+        for i in meilleurRecette.getIndexIngredients():
+            solution.append(self.getIngredient(i))
+        self.__ingredientsSolution = solution
+        # Ecriture du résultat
+        self.__gestionFichier.ecrireResultat(self.__cheminSortie)
 
     def getNbIngredients(self) -> int:
         return len(self.__ingredients)
 
     def getClients(self) -> list[Client]:
         return self.__clients
+
+    def getIngredientsSolution(self) -> list[str]:
+        return self.__ingredientsSolution

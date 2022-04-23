@@ -1,7 +1,9 @@
 @startuml
 
 class Programme {
-    Programme()
+    String cheminEntree
+    String cheminSortie
+    Programme(String entree, String sortie)
     void setAlgorithmeResolution(AlgorithmeResolution ar)
     int ajouterIngredient(String ingredient)
     void ajouterClient(Client c)
@@ -28,18 +30,18 @@ GestionnaireFichier --"1" Programme
 
 abstract class AlgorithmeResolution {
     AlgorithmeResolution(Programme p)
-    void trouverSolution()
+    Recette trouverSolution()
 }
 AlgorithmeResolution --"1" Programme: programme
 
 class BranchAndBound extends AlgorithmeResolution {
     BranchAndBound(Programme p)
-    void trouverSolution()
+    Recette trouverSolution()
 }
 
 class ExplorationTotale extends AlgorithmeResolution {
     ExplorationTotale(Programme p)
-    void trouverSolution()
+    Recette trouverSolution()
 }
 
 class Genetique extends AlgorithmeResolution {
