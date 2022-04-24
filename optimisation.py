@@ -105,6 +105,7 @@ class Client:
     __numero: int
     __ingredientsAimes: list[int]
     __ingredientsAimesSet: set()
+    __ingredientsNonAimesSet: set()
     __ingredientsNonAimes: list[int]
     __programme: Programme
 
@@ -381,7 +382,7 @@ class Genetique(AlgorithmeResolution):
             enfants = self.croisement(selection[0],taillePopulation)
             enfants = self.mutation(enfants)
             population = self.evaluation(enfants)
-            continuer = genApresAm < 50
+            continuer = genApresAm < 100
             
         return Recette(self._programme, meilleurRecette[0])
 
@@ -457,14 +458,18 @@ class Genetique(AlgorithmeResolution):
 class Tabou(AlgorithmeResolution):
     __tailleMemoire: int
     __nbMouvements: int
+    __nbgenApresAm: int
+    __nbBits: int
 
-    def __init__(self, p: Programme, tailleMemoire: int, nbMouvements: int) -> None:
+    def __init__(self, p: Programme, tailleMemoire: int, nbMouvements: int, genApresAm: int, nbBits: int) -> None:
         super().__init__(p)
         self.__tailleMemoire = tailleMemoire
         self.__nbMouvements = nbMouvements
+        self.__nbgenApresAm = genApresAm
+        self.__nbBits = nbBits
 
     def trouverSolution(self) -> Recette:
-        memoire = []
+        memoire = []    
         meilleurRecette = ("1", 0)
         continuer = True
         genApresAm = 0
@@ -484,7 +489,7 @@ class Tabou(AlgorithmeResolution):
                 configInitiale = meilleurVoisin[0]
             else: 
                 genApresAm += 1
-            continuer = genApresAm < 50
+            continuer = genApresAm < self.__nbgenApresAm
         return Recette(self._programme, meilleurRecette[0])
 
     def genererConfiguration(self, nbIngredients: int)->str:
@@ -504,11 +509,12 @@ class Tabou(AlgorithmeResolution):
 
     def createVoisin(self, configInitiale: str)->str:
         nbIngredients = self._programme.getNbIngredients()
-        bit = random.randint(0, nbIngredients-1)
-        if configInitiale[bit]=="1":
-            value = "0"
-        else:
-            value = "1"
+        bitList = random.sample(range(1, nbIngredients-1), self.__nbBits)
+        for bit in bitList:
+            if configInitiale[bit]=="1":
+                value = "0"
+            else:
+                value = "1"
         return configInitiale[:bit] + value + configInitiale[bit+1:]
 
     def meilleurVoisin(self, voisins: dict[Recette, int], memoire:list, configInitiale:str)->tuple[str, int]:
