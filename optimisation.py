@@ -47,6 +47,7 @@ class Recette:
     """
     __indexIngredients: list[int]
     __programme: Programme
+    __recetteSet: set() = {}
 
     def __init__(self, p: Programme, *args) -> None:
         """
@@ -67,6 +68,7 @@ class Recette:
                 if codeIngredients[i] == '1':
                     self.__indexIngredients.append(i)
         self.__programme = p
+        self.__recetteSet = set(self.__indexIngredients)
 
     def __repr__(self) -> str:
         ingredients = []
@@ -82,6 +84,9 @@ class Recette:
         ----------
         """
         return self.__indexIngredients.copy()
+
+    def getSetIngredients(self) -> set():
+        return self.__recetteSet
 
 
 class Client:
@@ -101,6 +106,8 @@ class Client:
     """
     __numero: int
     __ingredientsAimes: list[int]
+    __ingredientsAimesSet: set()
+    __ingredientsNonAimesSet: set()
     __ingredientsNonAimes: list[int]
     __programme: Programme
 
@@ -119,6 +126,8 @@ class Client:
         self.__ingredientsAimes = []
         self.__ingredientsNonAimes = []
         self.__programme = p
+        self.__ingredientsAimesSet = {}
+        self.__ingredientsNonAimesSet = {}
 
     def __repr__(self) -> str:
         ingredientsA = []
@@ -188,9 +197,14 @@ class Client:
         r : Recette
             la Recette de la pizza
         """
-        ingredientsASet = set(self.__ingredientsAimes)
-        ingredientsNASet = set(self.__ingredientsNonAimes)
-        recetteSet = set(r.getIndexIngredients())
+        if len(self.__ingredientsAimesSet) == 0:
+            self.__ingredientsAimesSet = set(self.__ingredientsAimes)
+        if len(self.__ingredientsNonAimesSet) == 0:
+            self.__ingredientsNonAimesSet = set(self.__ingredientsNonAimes)
+
+        ingredientsASet = self.__ingredientsAimesSet
+        ingredientsNASet = self.__ingredientsNonAimesSet
+        recetteSet = r.getSetIngredients()
         contientAimes = ingredientsASet.issubset(
             recetteSet)
         neContientNonAimes = len(ingredientsNASet.intersection(
@@ -494,6 +508,79 @@ class Genetique(AlgorithmeResolution):
                 break
         return meilleurs
 
+class Tabou(AlgorithmeResolution):
+    __tailleMemoire: int
+    __nbMouvements: int
+    __nbgenApresAm: int
+    __nbBits: int
+
+    def __init__(self, p: Programme, tailleMemoire: int, nbMouvements: int, genApresAm: int, nbBits: int) -> None:
+        super().__init__(p)
+        self.__tailleMemoire = tailleMemoire
+        self.__nbMouvements = nbMouvements
+        self.__nbgenApresAm = genApresAm
+        self.__nbBits = nbBits
+
+    def trouverSolution(self) -> Recette:
+        memoire = []
+        meilleurRecette = ("1", 0)
+        continuer = True
+        genApresAm = 0
+        
+        configInitiale = self.genererConfiguration(self._programme.getNbIngredients())
+        
+        while continuer :
+            voisins = self.genererVoisins(configInitiale, self.__nbMouvements)
+            meilleurVoisin = self.meilleurVoisin(voisins, memoire, configInitiale)
+            print(meilleurVoisin[1])
+            if meilleurVoisin[1] > meilleurRecette[1]:
+                genApresAm = 0
+                meilleurRecette = meilleurVoisin
+                memoire.append((configInitiale, meilleurVoisin[0]))
+                if len(memoire) >= self.__tailleMemoire:
+                    memoire.pop(0)
+                configInitiale = meilleurVoisin[0]
+            else: 
+                genApresAm += 1
+            continuer = genApresAm < self.__nbgenApresAm
+        return Recette(self._programme, meilleurRecette[0])
+
+    def genererConfiguration(self, nbIngredients: int)->str:
+        valeur = random.randint(0, 2**nbIngredients - 1)
+        recette = format(valeur, 'b').rjust(nbIngredients, '0')
+        return recette
+
+    def genererVoisins(self, configInitiale: str, nbMouvements: int)->dict[Recette, int]:
+        voisins = dict()
+        # Genere les voisins en calculant le score
+        while len(voisins) < nbMouvements:
+            recette = self.createVoisin(configInitiale)
+            if not recette in voisins :
+                voisins[recette] = self.calculerScore(recette)
+
+        return voisins
+
+    def createVoisin(self, configInitiale: str)->str:
+        nbIngredients = self._programme.getNbIngredients()
+        bitList = random.sample(range(1, nbIngredients-1), self.__nbBits)
+        for bit in bitList:
+            if configInitiale[bit]=="1":
+                value = "0"
+            else:
+                value = "1"
+        return configInitiale[:bit] + value + configInitiale[bit+1:]
+
+    def meilleurVoisin(self, voisins: dict[Recette, int], memoire:list, configInitiale:str)->tuple[str, int]:
+        while True:
+            meilleurVoisin = (max(voisins, key=voisins.get))
+            if (configInitiale, meilleurVoisin) in memoire:
+                voisins.pop(meilleurVoisin)
+                if len(voisins) == 0:
+                    return configInitiale
+            else:
+                meilleurScore = voisins[meilleurVoisin]
+                return(meilleurVoisin, meilleurScore)
+        
 
 class ExplorationTotale(AlgorithmeResolution):
     def __init__(self, p: Programme) -> None:
