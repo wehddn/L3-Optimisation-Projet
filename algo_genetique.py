@@ -11,7 +11,7 @@ def main():
             python3 evaluation.py <chemin_vers_fichier_d_entree> <chemin_vers_fichier_de_solution>")
 
     p = Programme(donnees, solution)
-    p.setAlgorithmeResolution(Genetique(p, 64))
+    p.setAlgorithmeResolution(Genetique(p, 64, 300))
     p.trouverSolution()
 
 
