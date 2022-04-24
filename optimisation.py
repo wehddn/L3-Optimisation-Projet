@@ -1,6 +1,8 @@
 from abc import ABC, abstractclassmethod
 import random
 from time import perf_counter
+from typing import Iterable
+
 
 from DonneesCodePizza.main import croisement, mutation
 
@@ -342,91 +344,131 @@ class AlgorithmeResolution(ABC):
 
 class Genetique(AlgorithmeResolution):
     __taillePopulation: int
+    __tendanceEvolution: int
+    __individus: dict[str]
+    __tempsMax: float
+    __meilleurIndividu: str
+    __meilleurIndividuPrecedent: str
+    __meilleurScore: str
+    __parents: list[tuple[str, str]]
+    __enfants: set[str]
 
-    def __init__(self, p: Programme, taillePopulation: int) -> None:
+    def __init__(self, p: Programme, taillePopulation: int, tempsMax: float) -> None:
         super().__init__(p)
         self.__taillePopulation = taillePopulation
+        self.__tendanceEvolution = 0
+        self.__individus = dict()
+        self.__tempsMax = tempsMax
+        self.__meilleurIndividu = ""
+        self.__meilleurScore = 0
+        self.__parents = list()
+        self.__enfants = set()
 
     def trouverSolution(self) -> Recette:
-        taillePopulation = min(self._programme.getNbIngredients(), self.__taillePopulation)
-        debutGen = perf_counter()
+        self.__taillePopulation = min(
+            2 ** self._programme.getNbIngredients() - 1, self.__taillePopulation)
+        # Génération de la population
         random.seed()
-        population = self.genererPopulation(taillePopulation)
-        finGen = perf_counter()
-        print(f"Temps génération de la population : {finGen - debutGen}s")
-        meilleurRecette = ("1", 0)
-        continuer = True
-        genApresAm = 0
-        while continuer :
-            selection = self.selection(population, taillePopulation, 0.1)
-            if selection[1] > meilleurRecette[1]:
-                genApresAm = 0
-                meilleurRecette = (selection[0][0], selection[1])
-                print(meilleurRecette)
-            else :
-                genApresAm += 1
-            enfants = self.croisement(selection[0],taillePopulation)
-            enfants = self.mutation(enfants)
-            population = self.evaluation(enfants)
-            continuer = genApresAm < 50
-            
-        return Recette(self._programme, meilleurRecette[0])
-
-    def genererPopulation(self, taille: int) -> dict[Recette, int]:
-        population = dict()
-        nbIngredients = self._programme.getNbIngredients()
-        # Genere la population en calculant le score
-        while len(population) < taille:
-            valeur = random.randint(0, 2**nbIngredients - 1)
-            recette = format(valeur, 'b').rjust(nbIngredients, '0')
-            if not recette in population :
-                population[recette] = self.calculerScore(recette)
-
-        return population
-
-    def selection(self, population: dict[str, int],  taillePopulation: int, ratioParent: float) -> tuple[list,int]:
-        nbParent = round(taillePopulation * ratioParent)
-        meilleurs = []
-        meilleurScore = 0
-        for i in sorted(population, key=population.get, reverse=True):
-            if len(meilleurs) == 0 :
-                meilleurScore = population[i]
-
-            if len(meilleurs) < nbParent:
-                meilleurs.append(i)
-            else:
-                break
-        return (meilleurs,meilleurScore)
-
-    def croisement(self, selection: list[str], nbIndividus: int) -> list[str]:
-        resultat = []
-        while len(resultat) < nbIndividus:
-            selectTemp = selection.copy()
-            i = random.randint(0, len(selectTemp) - 1)
-            parent1 = selectTemp.pop(i)
-            i = random.randint(0, len(selectTemp) - 1)
-            parent2 = selectTemp.pop(i)
-
-            resultat.append(self.croisementPair(parent1, parent2))
-        return resultat
+        debut = perf_counter()
+        population = self.genererPopulation(self.__taillePopulation)
         
+        # Evaluation des individus
+        individus = self.evaluations(population)
 
-    def croisementPair(self, parent1: str, parent2: str) -> str:
-        point = random.randint(0, len(parent1) - 1)
-        reponse = parent1[:point] + parent2[point:]
-        return reponse
-    
-    def mutation(self, enfants:list[str]) -> list[str]:
-        reponse = []
-        for i in enfants:
-            reponse.append(self.mutationEnfant(i))
-        return reponse
-    
-    def mutationEnfant(self, enfant:str) -> str:
+        continuer = True
+        while continuer:
+            # Selection pour la reproduction
+            parents = self.selectionReproduction(individus)
+            # Croisement des individus selectionnés
+            enfants = self.croisements(parents)
+            # Mutations des enfants
+            enfants = self.mutations(enfants)
+            # Evaluation des enfants
+            sEnfants = self.evaluations(enfants)
+            # Remplacement
+            individus = self.remplacement(individus, sEnfants)
+            
+            fin = perf_counter()
+            
+            # Stop ? :
+            if self.__tendanceEvolution >= 200 or (fin - debut) >= self.__tempsMax :
+                continuer = False
+            print(f"Individu : {self.__meilleurIndividu}\nScore : {self.__meilleurScore}\nTour(s) depuis dernière évolution : {self.__tendanceEvolution}")
+            self.__tendanceEvolution += 1
+        print(f"Temps : {fin - debut:.3f} s")
+        return Recette(self._programme, self.__meilleurIndividu)
+
+    def genererPopulation(self, nbIndividus: int) -> Iterable:
+        nbIngredients = self._programme.getNbIngredients()
+        individus = set()
+        random.seed()
+        # Genere la population
+        while len(individus) < nbIndividus:
+            valeurAleatoire = random.randint(0, 2**nbIngredients - 1)
+            recette = format(valeurAleatoire, 'b').rjust(nbIngredients, '0')
+            individus.add(recette)
+        return individus
+
+    def evaluations(self, individus:Iterable[str])-> dict[str, int]:
+        evals = dict()
+        for key in individus:
+            evals[key] = self.__individus.pop(key, self.calculerScore(key))
+            if evals[key] > self.__meilleurScore:
+                self.__tendanceEvolution = 0
+                self.__meilleurIndividu = key
+                self.__meilleurScore = evals[key]
+        self.__individus = evals
+        return evals
+
+    def selectionReproduction(self, individus:dict[str, int])->Iterable:
+        probabilites = []
+        keys = []
+        parents = list()
+        nbIndividus = self.__taillePopulation
+        p = 5
+        for (i,key) in enumerate(sorted(individus, key=individus.get, reverse=True)):
+            probabilite = ((1 - (i + 1)/nbIndividus) ** p)
+            # probabilite = i/(nbIndividus * (nbIndividus - 1))
+            probabilites.append(probabilite)
+            keys.append(key)
+
+        random.seed()
+        while len(parents) < nbIndividus:
+            parents.append(random.choices(
+                keys, weights=probabilites, k=2))
+        return parents
+
+    def croisements(self, parents:Iterable) -> Iterable:
+        enfants = list()
+        for couple in parents:
+            enfant = self.croisement(couple[0], couple[1])
+            enfants.append(enfant)
+        return enfants
+
+    def croisement(self, parent1: str, parent2: str) -> str:
+        # random.seed()
+        bits = random.choices([True, False], weights=[1.0,1.0], k = len(parent1))
+        enfant = ""
+        for (i,bit) in enumerate(bits):
+            if bit :
+                enfant += parent1[i]
+            else:
+                enfant += parent2[i]
+        return enfant
+
+    def mutations(self, individus:Iterable) -> Iterable:
+        
+        for (i,enfant) in enumerate(individus):
+            resultatMutation = self.mutation(enfant)
+            individus[i] = resultatMutation
+        return individus
+
+    def mutation(self, enfant: str) -> str:
         reponse = ""
-        probabilite = 1/10
+        probabilite = 0.1
+        random.seed()
         for bit in enfant:
-            if random.random() <= probabilite:
+            if random.uniform(0.0,1.0) <= probabilite:
                 if bit == "0":
                     reponse += "1"
                 else:
@@ -435,11 +477,22 @@ class Genetique(AlgorithmeResolution):
                 reponse += bit
         return reponse
 
-    def evaluation(self, enfants:list[str])->dict[str, int]:
-        reponse = dict()
-        for i in enfants:
-            reponse[i] = self.calculerScore(i)
-        return reponse
+    def remplacement(self, individus:dict[str,int], enfants:dict[str,int]) -> dict[str,int]:
+        meilleurs = dict()
+        nbParents = 0.15 * self.__taillePopulation
+        
+        for i in sorted(individus, key=individus.get, reverse=True):
+            if len(meilleurs) < nbParents:
+                meilleurs[i] = individus[i]
+            else:
+                break
+
+        for enfant in sorted(enfants, key=enfants.get, reverse=True):
+            if len(meilleurs) < len(individus):
+                meilleurs[enfant] = enfants[enfant]
+            else:
+                break
+        return meilleurs
 
 
 class ExplorationTotale(AlgorithmeResolution):
