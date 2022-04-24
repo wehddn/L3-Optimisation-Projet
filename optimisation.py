@@ -236,6 +236,7 @@ class GestionnaireFichier:
         nomFichier: str
             Le chemin du fichier
         """
+        print("Lecture des données...")
         with open(nomFichier, "r") as fichier:
             # Lecture de l'entête (nombre de clients)
             ligne = fichier.readline().strip('\n')
@@ -522,26 +523,35 @@ class Tabou(AlgorithmeResolution):
         self.__nbBits = nbBits
 
     def trouverSolution(self) -> Recette:
-        memoire = []
         meilleurRecette = ("1", 0)
         continuer = True
         genApresAm = 0
         
+        #Configuration initiale s
         configInitiale = self.genererConfiguration(self._programme.getNbIngredients())
+        #Liste tabou initiale vide
+        memoire = []
         
         while continuer :
+            #Pertubation de s suivant :
+            #N mouvements non tabou, evaluation des N voisins
             voisins = self.genererVoisins(configInitiale, self.__nbMouvements)
+            #Selection du meilleur voisin t
             meilleurVoisin = self.meilleurVoisin(voisins, memoire, configInitiale)
-            print(meilleurVoisin[1])
+            print(f"Score : {meilleurVoisin[1]}, Tour(s) depuis dernière évolution : {genApresAm}")
+            #Actualisation de la meilleure solution connue
             if meilleurVoisin[1] > meilleurRecette[1]:
                 genApresAm = 0
                 meilleurRecette = meilleurVoisin
+                #Insertion du mouvement t->s dans la liste tabou
                 memoire.append((configInitiale, meilleurVoisin[0]))
                 if len(memoire) >= self.__tailleMemoire:
                     memoire.pop(0)
+                #Nouvelle configuration courante
                 configInitiale = meilleurVoisin[0]
             else: 
                 genApresAm += 1
+            #Critère d'arrêt atteint? 
             continuer = genApresAm < self.__nbgenApresAm
         return Recette(self._programme, meilleurRecette[0])
 
