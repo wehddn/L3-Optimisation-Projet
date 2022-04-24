@@ -469,7 +469,7 @@ class Tabou(AlgorithmeResolution):
         self.__nbBits = nbBits
 
     def trouverSolution(self) -> Recette:
-        memoire = []    
+        memoire = []
         meilleurRecette = ("1", 0)
         continuer = True
         genApresAm = 0
@@ -483,7 +483,7 @@ class Tabou(AlgorithmeResolution):
             if meilleurVoisin[1] > meilleurRecette[1]:
                 genApresAm = 0
                 meilleurRecette = meilleurVoisin
-                memoire.append(meilleurVoisin[0])
+                memoire.append((configInitiale, meilleurVoisin[0]))
                 if len(memoire) >= self.__tailleMemoire:
                     memoire.pop(0)
                 configInitiale = meilleurVoisin[0]
@@ -518,9 +518,9 @@ class Tabou(AlgorithmeResolution):
         return configInitiale[:bit] + value + configInitiale[bit+1:]
 
     def meilleurVoisin(self, voisins: dict[Recette, int], memoire:list, configInitiale:str)->tuple[str, int]:
-        meilleurVoisin = (max(voisins, key=voisins.get))
         while True:
-            if meilleurVoisin in memoire:
+            meilleurVoisin = (max(voisins, key=voisins.get))
+            if (configInitiale, meilleurVoisin) in memoire:
                 voisins.pop(meilleurVoisin)
                 if len(voisins) == 0:
                     return configInitiale
