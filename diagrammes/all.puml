@@ -56,9 +56,22 @@ class Genetique extends AlgorithmeResolution {
     Dict<String,int> evaluation(List<String>)
 }
 
+class Tabou extends AlgorithmeResolution {
+    int tailleMemoire
+    int nbMouvements
+    Tabou(programme p, int tailleMemoire, int nbMouvements)
+    void trouverSolution()
+    String genererConfiguration(int nbIngredients)
+    Dict<String, int> genererVoisins(int nbMouvements)
+    Dict<String, int> getMeilleurVoisin()
+
+
+
+}
 
 class Recette {
     List<int> indexIngredients
+    Set recetteSet
     Recette(Programme p, List<int> indexIngredients)
     Recette(Programme p, String codeIngredients)
     List<int> getIndexIngredients()
@@ -69,6 +82,9 @@ class Client {
     int numero
     List<int> ingredientsAimes
     List<int> ingredientNonAimes
+    Set ingredientsAimesSet
+    Set ingredientsNonAimesSet
+
     Client(Programme p, int numero)
     void addIngredientAime(int indexIngredient)
     void addIngredientNonAime(int indexIngredient)
