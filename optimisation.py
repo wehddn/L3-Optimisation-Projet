@@ -1,5 +1,6 @@
 from abc import ABC, abstractclassmethod
 import random
+import sys
 from time import perf_counter
 from typing import Iterable
 
@@ -197,9 +198,9 @@ class Client:
         r : Recette
             la Recette de la pizza
         """
-        if len(self.__ingredientsAimesSet) == 0:
+        if not self.__ingredientsAimesSet:
             self.__ingredientsAimesSet = set(self.__ingredientsAimes)
-        if len(self.__ingredientsNonAimesSet) == 0:
+        if not self.__ingredientsNonAimesSet:
             self.__ingredientsNonAimesSet = set(self.__ingredientsNonAimes)
 
         ingredientsASet = self.__ingredientsAimesSet
@@ -357,35 +358,89 @@ class AlgorithmeResolution(ABC):
 
 
 class Genetique(AlgorithmeResolution):
+    """
+    Classe de l'algo de recherche génétique
+
+    Attributes
+    ----------
     __taillePopulation: int
-    __tendanceEvolution: int
+        La taille de la population
+    __toursDepuisEvolution: int
+        Le nombre de tours qui est passé sans constaté d'évolution depuis la dernière évolution
+    __maxNbToursDepuisEvolution:int
+        Le nombre de tours max sans constater d'évolution (Arrète la recherche lorsqu'on atteint ce nombre)
+    __scoreVisee:int
+        Le score que l'on souhaite atteindre avec l'algo (il s'arrête dès qu'on arrive à ce score)
+    __individus: dict[str,int]
+        Dictionnaire (individus, score)
+    __tempsMax: float
+        Le temps au bout du quel si l'algorithme n'est pas fini il s'arrête
+    __meilleurIndividu: str
+        Le meilleur individu jusqu'a présent
+    __meilleurScore: int
+        Le meilleur score jusqu'a présent
+    __ratioParentConserve:float
+        Le ratio parent/enfant dans la population à chaque nouvelle génération
+    __pressionSelection:int
+        La pression de selection (plus elle est élevée plus on a de chance que les meilleurs se reproduisent,
+        au risque de perdre en diversité et de tomber dans un optimal local)
+    """
+    __taillePopulation: int
+    __toursDepuisEvolution: int
+    __maxNbToursDepuisEvolution: int
+    __scoreVisee: int
     __individus: dict[str]
     __tempsMax: float
     __meilleurIndividu: str
-    __meilleurIndividuPrecedent: str
-    __meilleurScore: str
-    __parents: list[tuple[str, str]]
-    __enfants: set[str]
+    __meilleurScore: int
+    __ratioParentConserve: float
+    __pressionSelection: int
 
-    def __init__(self, p: Programme, taillePopulation: int, tempsMax: float) -> None:
+    def __init__(self, p: Programme, scoreVisee: int = -1, taillePopulation: int = 60, ratioParentConserve: float = 0.10, tempsMax: float = 300.0, maxNbToursDepuisEvolution: int = 100, pressionSelection: int = 2) -> None:
+        """
+        Constructeur
+
+        Parameters
+        ----------
+        p : Programme
+            Le programme de recherche de solution
+        scoreVisee: int
+            Le score visée
+        taillePopulation: int
+            La taille de la population
+        ratioParentConserve
+            Le ratio des meilleurs parents à conserver à chaque nouvelle génération [0,1]
+        tempsMax: float
+            Le tempsMax en secondes (on arrête l'algorithme lorsqu'on l'atteint ou le dépasse)
+            (avec un petit retard le temps d'executer les séquences dèja entamée)
+        maxNbToursDepuisEvolution: int
+            Le nombre max de tours sans évolution au bout du quel on arrête l'algo
+        pressionSelection:int
+            La pression de selection >= 1
+        """
         super().__init__(p)
-        self.__taillePopulation = taillePopulation
-        self.__tendanceEvolution = 0
+        self.__scoreVisee = scoreVisee
+        # La taille de la population ne peut pas dépasser le nombre de possibilités
+        self.__taillePopulation = min(
+            2 ** self._programme.getNbIngredients() - 1, taillePopulation)
+        self.__toursDepuisEvolution = 0
+        self.__maxNbToursDepuisEvolution = maxNbToursDepuisEvolution
         self.__individus = dict()
         self.__tempsMax = tempsMax
         self.__meilleurIndividu = ""
-        self.__meilleurScore = 0
-        self.__parents = list()
-        self.__enfants = set()
+        self.__meilleurScore = -1
+        self.__ratioParentConserve = ratioParentConserve
+        self.__pressionSelection = max(pressionSelection, 1)
 
     def trouverSolution(self) -> Recette:
-        self.__taillePopulation = min(
-            2 ** self._programme.getNbIngredients() - 1, self.__taillePopulation)
+        """
+        Donne la recette la plus acceptable qu'elle a pu trouvé grâce aux paramètres donné au constructeur
+        """
         # Génération de la population
         random.seed()
         debut = perf_counter()
         population = self.genererPopulation(self.__taillePopulation)
-        
+        noGeneration = 1
         # Evaluation des individus
         individus = self.evaluations(population)
 
@@ -401,47 +456,86 @@ class Genetique(AlgorithmeResolution):
             sEnfants = self.evaluations(enfants)
             # Remplacement
             individus = self.remplacement(individus, sEnfants)
-            
+
             fin = perf_counter()
-            
+
             # Stop ? :
-            if self.__tendanceEvolution >= 200 or (fin - debut) >= self.__tempsMax :
-                continuer = False
-            print(f"Individu : {self.__meilleurIndividu}\nScore : {self.__meilleurScore}\nTour(s) depuis dernière évolution : {self.__tendanceEvolution}")
-            self.__tendanceEvolution += 1
-        print(f"Temps : {fin - debut:.3f} s")
+            continuer = self.__toursDepuisEvolution < self.__maxNbToursDepuisEvolution and (
+                fin - debut) < self.__tempsMax and (self.__meilleurScore < self.__scoreVisee or self.__scoreVisee < 0)
+            if noGeneration > 1:
+                # Pour pouvoir réafficher sur les même ligne
+                sys.stdout.write(
+                    "\x1b[1A\x1b[2K\x1b[1A\x1b[2K\x1b[1A\x1b[2K\x1b[1A\x1b[2K")
+            print(
+                f"Generation no {noGeneration}\nMeilleur Score jusqu'a présent : {self.__meilleurScore}\nTour(s) depuis dernière évolution : {self.__toursDepuisEvolution}\nDuree : {fin - debut:.3f} s")
+            self.__toursDepuisEvolution += 1
+            noGeneration += 1
+
+            sys.stdout.flush()
+
         return Recette(self._programme, self.__meilleurIndividu)
 
-    def genererPopulation(self, nbIndividus: int) -> Iterable:
+    def genererPopulation(self, nbIndividus: int) -> Iterable[str]:
+        """
+        Génére un population de recette
+
+        Parameters
+        ----------
+        nbIndividus: int
+            Le nombre d'individus
+        """
         nbIngredients = self._programme.getNbIngredients()
         individus = set()
         random.seed()
         # Genere la population
         while len(individus) < nbIndividus:
+            # Génére un entier aléatoire et le transforme en code binaire
             valeurAleatoire = random.randint(0, 2**nbIngredients - 1)
             recette = format(valeurAleatoire, 'b').rjust(nbIngredients, '0')
+
             individus.add(recette)
         return individus
 
-    def evaluations(self, individus:Iterable[str])-> dict[str, int]:
+    def evaluations(self, individus: Iterable[str]) -> dict[str, int]:
+        """
+        Donne le fitness de chaque individu de la list
+
+        Parameters
+        ----------
+        p : Programme
+            Le programme de recherche de solution
+        scoreVisee: int
+            Le score visée
+        taillePopulation: int
+            La taille de la population
+        ratioParentConserve
+            Le ratio des meilleurs parents à conserver à chaque nouvelle génération [0,1]
+        tempsMax: float
+            Le tempsMax en secondes (on arrête l'algorithme lorsqu'on l'atteint ou le dépasse)
+            (avec un petit retard le temps d'executer les séquences dèja entamée)
+        maxNbToursDepuisEvolution: int
+            Le nombre max de tours sans évolution au bout du quel on arrête l'algo
+        pressionSelection:int
+            La pression de selection >= 1
+        """
         evals = dict()
         for key in individus:
             evals[key] = self.__individus.pop(key, self.calculerScore(key))
             if evals[key] > self.__meilleurScore:
-                self.__tendanceEvolution = 0
+                self.__toursDepuisEvolution = 0
                 self.__meilleurIndividu = key
                 self.__meilleurScore = evals[key]
         self.__individus = evals
         return evals
 
-    def selectionReproduction(self, individus:dict[str, int])->Iterable:
+    def selectionReproduction(self, individus: dict[str, int]) -> Iterable:
         probabilites = []
         keys = []
         parents = list()
         nbIndividus = self.__taillePopulation
-        p = 5
-        for (i,key) in enumerate(sorted(individus, key=individus.get, reverse=True)):
-            probabilite = ((1 - (i + 1)/nbIndividus) ** p)
+        pressionDeSelection = self.__pressionSelection
+        for (i, key) in enumerate(sorted(individus, key=individus.get, reverse=True)):
+            probabilite = ((1 - (i + 1)/nbIndividus) ** pressionDeSelection)
             # probabilite = i/(nbIndividus * (nbIndividus - 1))
             probabilites.append(probabilite)
             keys.append(key)
@@ -452,7 +546,7 @@ class Genetique(AlgorithmeResolution):
                 keys, weights=probabilites, k=2))
         return parents
 
-    def croisements(self, parents:Iterable) -> Iterable:
+    def croisements(self, parents: Iterable) -> Iterable:
         enfants = list()
         for couple in parents:
             enfant = self.croisement(couple[0], couple[1])
@@ -460,29 +554,30 @@ class Genetique(AlgorithmeResolution):
         return enfants
 
     def croisement(self, parent1: str, parent2: str) -> str:
-        # random.seed()
-        bits = random.choices([True, False], weights=[1.0,1.0], k = len(parent1))
+        random.seed()
+        bits = random.choices([True, False], weights=[
+                              1.0, 1.0], k=len(parent1))
         enfant = ""
-        for (i,bit) in enumerate(bits):
-            if bit :
+        for (i, bit) in enumerate(bits):
+            if bit:
                 enfant += parent1[i]
             else:
                 enfant += parent2[i]
         return enfant
 
-    def mutations(self, individus:Iterable) -> Iterable:
-        
-        for (i,enfant) in enumerate(individus):
+    def mutations(self, individus: Iterable) -> Iterable:
+
+        for (i, enfant) in enumerate(individus):
             resultatMutation = self.mutation(enfant)
             individus[i] = resultatMutation
         return individus
 
     def mutation(self, enfant: str) -> str:
         reponse = ""
-        probabilite = 0.1
+        probabilite = 1/len(enfant) # Par exemple pour une recette avec 10 ingrédients, un individus sur 10 à une change de muter parmi les enfants
         random.seed()
         for bit in enfant:
-            if random.uniform(0.0,1.0) <= probabilite:
+            if random.uniform(0.0, 1.0) <= probabilite:
                 if bit == "0":
                     reponse += "1"
                 else:
@@ -491,10 +586,10 @@ class Genetique(AlgorithmeResolution):
                 reponse += bit
         return reponse
 
-    def remplacement(self, individus:dict[str,int], enfants:dict[str,int]) -> dict[str,int]:
+    def remplacement(self, individus: dict[str, int], enfants: dict[str, int]) -> dict[str, int]:
         meilleurs = dict()
-        nbParents = 0.15 * self.__taillePopulation
-        
+        nbParents = self.__ratioParentConserve * self.__taillePopulation
+
         for i in sorted(individus, key=individus.get, reverse=True):
             if len(meilleurs) < nbParents:
                 meilleurs[i] = individus[i]
@@ -507,6 +602,7 @@ class Genetique(AlgorithmeResolution):
             else:
                 break
         return meilleurs
+
 
 class Tabou(AlgorithmeResolution):
     __tailleMemoire: int
@@ -526,12 +622,14 @@ class Tabou(AlgorithmeResolution):
         meilleurRecette = ("1", 0)
         continuer = True
         genApresAm = 0
-        
-        configInitiale = self.genererConfiguration(self._programme.getNbIngredients())
-        
-        while continuer :
+
+        configInitiale = self.genererConfiguration(
+            self._programme.getNbIngredients())
+
+        while continuer:
             voisins = self.genererVoisins(configInitiale, self.__nbMouvements)
-            meilleurVoisin = self.meilleurVoisin(voisins, memoire, configInitiale)
+            meilleurVoisin = self.meilleurVoisin(
+                voisins, memoire, configInitiale)
             print(meilleurVoisin[1])
             if meilleurVoisin[1] > meilleurRecette[1]:
                 genApresAm = 0
@@ -540,37 +638,37 @@ class Tabou(AlgorithmeResolution):
                 if len(memoire) >= self.__tailleMemoire:
                     memoire.pop(0)
                 configInitiale = meilleurVoisin[0]
-            else: 
+            else:
                 genApresAm += 1
             continuer = genApresAm < self.__nbgenApresAm
         return Recette(self._programme, meilleurRecette[0])
 
-    def genererConfiguration(self, nbIngredients: int)->str:
+    def genererConfiguration(self, nbIngredients: int) -> str:
         valeur = random.randint(0, 2**nbIngredients - 1)
         recette = format(valeur, 'b').rjust(nbIngredients, '0')
         return recette
 
-    def genererVoisins(self, configInitiale: str, nbMouvements: int)->dict[Recette, int]:
+    def genererVoisins(self, configInitiale: str, nbMouvements: int) -> dict[Recette, int]:
         voisins = dict()
         # Genere les voisins en calculant le score
         while len(voisins) < nbMouvements:
             recette = self.createVoisin(configInitiale)
-            if not recette in voisins :
+            if not recette in voisins:
                 voisins[recette] = self.calculerScore(recette)
 
         return voisins
 
-    def createVoisin(self, configInitiale: str)->str:
+    def createVoisin(self, configInitiale: str) -> str:
         nbIngredients = self._programme.getNbIngredients()
         bitList = random.sample(range(1, nbIngredients-1), self.__nbBits)
         for bit in bitList:
-            if configInitiale[bit]=="1":
+            if configInitiale[bit] == "1":
                 value = "0"
             else:
                 value = "1"
         return configInitiale[:bit] + value + configInitiale[bit+1:]
 
-    def meilleurVoisin(self, voisins: dict[Recette, int], memoire:list, configInitiale:str)->tuple[str, int]:
+    def meilleurVoisin(self, voisins: dict[Recette, int], memoire: list, configInitiale: str) -> tuple[str, int]:
         while True:
             meilleurVoisin = (max(voisins, key=voisins.get))
             if (configInitiale, meilleurVoisin) in memoire:
@@ -580,7 +678,7 @@ class Tabou(AlgorithmeResolution):
             else:
                 meilleurScore = voisins[meilleurVoisin]
                 return(meilleurVoisin, meilleurScore)
-        
+
 
 class ExplorationTotale(AlgorithmeResolution):
     def __init__(self, p: Programme) -> None:
@@ -666,15 +764,19 @@ class Programme:
     def ajouterClient(self, c: Client) -> None:
         self.__clients.append(c)
 
-    def trouverSolution(self) -> None:
+    def recupererDonnees(self) -> None:
         # Recupération des données
         self.__gestionFichier.getDonnees(self.__cheminEntree)
-        meilleurRecette = self.__resolveur.trouverSolution()
+
+    def trouverSolution(self) -> None:
         # Recherche de solution
+        meilleurRecette = self.__resolveur.trouverSolution()
         solution = []
         for i in meilleurRecette.getIndexIngredients():
             solution.append(self.getIngredient(i))
         self.__ingredientsSolution = solution
+
+    def ecrireResultat(self) -> None:
         # Ecriture du résultat
         self.__gestionFichier.ecrireResultat(self.__cheminSortie)
 
